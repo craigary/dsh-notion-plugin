@@ -363,7 +363,7 @@ window.__ModuleLoader__.load({
     }
 
     return {
-      inject: ['slots'],
+      inject: ['slots', 'locale'],
       apply(ctx) {
         _ctx = ctx;
         // Locale: register our dictionaries and bind a translate function, using
@@ -383,7 +383,7 @@ window.__ModuleLoader__.load({
           return h('span', { style: { display: 'inline-flex', width: s, height: s }, 'aria-hidden': true, dangerouslySetInnerHTML: { __html: NOTION_SVG } });
         }
         ctx.slots.inject('settings.section', () => ctx.slots.register({
-          name: 'settings.section', id: 'notion', order: 25, label: 'Notion',
+          name: 'settings.section', id: 'notion', order: 25, locale: LOCALE_NS, label: 'Notion',
         }, SettingsPage));
         ctx.slots.inject('settings.section.icon', () => ctx.slots.register({
           name: 'settings.section.icon', id: 'notion', order: 25,
