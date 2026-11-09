@@ -41,7 +41,55 @@ window.__ModuleLoader__.load({
 .notion-switch:checked::before{transform:translateX(16px);background:var(--dsw-alias-label-primary-foreground,light-dark(#fff,#0f1115))}
 .notion-empty{color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6));padding:8px 0}
 .notion-err{color:#d4384a;font-size:12px}
+.notion-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:9999}
+.notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:14px;padding:22px 22px 18px;width:min(92vw,380px);box-shadow:0 12px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px}
+.notion-modal-icon{font-size:26px;line-height:1}
+.notion-modal h3{margin:0;font-size:16px;font-weight:600}
+.notion-modal-text{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6))}
+.notion-modal-ta{width:100%;box-sizing:border-box;margin-top:2px;font:12px/18px ui-monospace,Menlo,monospace;color:inherit;background:var(--dsw-alias-bg-layer-1,light-dark(#f3f4f5,#232427));border:.5px solid var(--dsw-alias-border-l2,#ddd);border-radius:8px;padding:8px;resize:vertical}
+.notion-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
 `;
+
+    const SETUP_COMMAND = '帮我初始化 Notion（运行 notion-setup 技能）';
+
+    // Modal shown right after a workspace connects: confirms success and offers
+    // to copy the setup command. Falls back to a selectable textarea when the
+    // clipboard API is unavailable.
+    function SuccessModal({ account, onClose }) {
+      const [copied, setCopied] = React.useState(false);
+      const [fallback, setFallback] = React.useState(false);
+      const taRef = React.useRef(null);
+      const name = (account && (account.workspaceName || account.workspaceId)) || 'your workspace';
+      const copy = async () => {
+        try {
+          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(SETUP_COMMAND);
+            setCopied(true);
+            return;
+          }
+        } catch (e) { /* fall through */ }
+        // Fallback: reveal a selectable textarea and select it.
+        setFallback(true);
+        setTimeout(() => { try { taRef.current && taRef.current.select(); } catch (e) {} }, 0);
+      };
+      return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
+        h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
+          h('div', { className: 'notion-modal-icon' }, h('span', null, '✅')),
+          h('h3', null, 'Connected'),
+          h('p', { className: 'notion-modal-text' },
+            'Notion workspace “' + name + '” is connected. To finish setting it up (once per workspace), run the Notion setup skill.'),
+          fallback
+            ? h('div', null,
+                h('p', { className: 'subtle', style: { marginBottom: 6 } }, 'Copy this into the message box and press Enter:'),
+                h('textarea', {
+                  ref: taRef, className: 'notion-modal-ta', readOnly: true, value: SETUP_COMMAND,
+                  onFocus: (e) => { try { e.target.select(); } catch (er) {} }, rows: 2,
+                }))
+            : h('p', { className: 'subtle' }, copied ? '✅ Copied. Paste it into the message box and press Enter.' : 'Copy this command, paste it into the message box, and press Enter.'),
+          h('div', { className: 'notion-modal-actions' },
+            h('button', { className: 'notion-btn primary', onClick: copy }, copied ? 'Copied' : 'Copy setup command'),
+            h('button', { className: 'notion-btn', onClick: onClose }, 'Close'))));
+    }
 
     function SettingsPage() {
       const [accounts, setAccounts] = React.useState({ accounts: [], activeId: undefined });
@@ -50,6 +98,7 @@ window.__ModuleLoader__.load({
       const [error, setError] = React.useState('');
       const [busy, setBusy] = React.useState(false);
       const [waiting, setWaiting] = React.useState(false);
+      const [successModal, setSuccessModal] = React.useState(null); // newly connected account, shows modal
 
       const reload = React.useCallback(async () => {
         try {
@@ -92,6 +141,11 @@ window.__ModuleLoader__.load({
             if (a && a.accounts && a.accounts.length > target) {
               setAccounts(a);
               setWaiting(false);
+              // Newly connected account = the one not present before; show the
+              // success modal offering to copy the setup command.
+              const prevIds = new Set(accounts.accounts.map((x) => x.id));
+              const fresh = a.accounts.find((x) => !prevIds.has(x.id)) || a.accounts[a.accounts.length - 1];
+              if (fresh) setSuccessModal(fresh);
               return;
             }
           } catch { /* keep polling */ }
@@ -173,7 +227,8 @@ window.__ModuleLoader__.load({
                   'aria-label': `Enable ${s.title || s.name}`,
                   onChange: (ev) => run(() => post('/skill', { name: s.name, enabled: ev.target.checked })),
                 })))),
-        error ? h('div', { className: 'notion-err' }, error) : null
+        error ? h('div', { className: 'notion-err' }, error) : null,
+        successModal ? h(SuccessModal, { account: successModal, onClose: () => setSuccessModal(null) }) : null
       );
     }
 
