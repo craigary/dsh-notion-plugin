@@ -482,6 +482,11 @@ export async function apply(ctx, config = {}) {
    *  - a memory titled exactly "Notion agent setup choice".
    */
   async function probeSetupStatus(accountId) {
+    // A manual override wins: the user marked this workspace as set up.
+    const setupRec = await readRecordSafe('notion/setup').catch(() => undefined);
+    if (setupRec && setupRec.done && setupRec.done[accountId]) {
+      return { initialized: true, evidence: { via: 'manual' } };
+    }
     const token = await ensureFreshTokenFor(accountId).catch(() => undefined);
     if (!token) return { initialized: false, reason: 'no-token' };
     const exact = (items, title) => (items || []).find((it) => (it.title || '').trim().toLowerCase() === title.toLowerCase());
@@ -716,6 +721,7 @@ export async function apply(ctx, config = {}) {
         if (p === '/api/active') return send(200, await notionService.setActive(body.id));
         if (p === '/api/remove') return send(200, await notionService.removeAccount(body.id));
         if (p === '/api/skill') return send(200, await notionService.setSkillEnabled(body.name, body.enabled));
+        if (p === '/api/setup-done') return send(200, await notionService.markSetupDone(body && body.id));
       }
       // /embed?url=<encoded notion app url> — proxy the Notion MCP page and strip
       // the frame-ancestors CSP directive so it can render inside a DSH iframe.
@@ -919,6 +925,15 @@ export async function apply(ctx, config = {}) {
       const id = accountId || store.activeId;
       if (!id) return { initialized: false, reason: 'no-account' };
       return probeSetupStatus(id);
+    },
+    async markSetupDone(accountId) {
+      const store = await readAccounts();
+      const id = accountId || store.activeId;
+      if (!id) return { ok: false, reason: 'no-account' };
+      const rec = (await readRecordSafe('notion/setup').catch(() => undefined)) || { v: 1, done: {} };
+      const done = Object.assign({}, rec.done || {}, { [id]: nowSec() });
+      await writeRecordSafe('notion/setup', { v: 1, done });
+      return { ok: true, id, setupStatus: { initialized: true } };
     },
   };
   // `notionService` backs both the management API and the agent tools below.

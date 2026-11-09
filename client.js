@@ -52,6 +52,10 @@ window.__ModuleLoader__.load({
 .notion-modal-btn{display:block;width:100%;box-sizing:border-box;height:44px;border-radius:9999px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--dsw-alias-border-l2,light-dark(#dcdcdc,#3a3b3e));background:var(--dsw-alias-bg-layer-1,light-dark(#f3f4f5,#232427));color:inherit}
 .notion-modal-btn.primary{background:#000;border-color:#000;color:#fff}
 .notion-modal-btn.primary:hover{opacity:.9}
+.notion-link-btn{background:none;border:0;padding:0;margin:0;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6));font:inherit;font-size:12px;text-decoration:underline;cursor:pointer}
+.notion-link-btn:hover{color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb))}
+.notion-setup-link{display:inline-block;margin-top:2px;padding:0;background:none;border:0;font-size:11px;color:#d97706;text-decoration:underline;cursor:pointer;text-align:left}
+.notion-setup-link:hover{color:#b45309}
 `;
 
     // Inline check-mark icon (no emoji).
@@ -63,10 +67,11 @@ window.__ModuleLoader__.load({
     // Modal shown right after a workspace connects: confirms success and offers
     // to copy the setup command. Falls back to a selectable textarea when the
     // clipboard API is unavailable.
-    function SuccessModal({ account, onClose }) {
+    function SuccessModal({ account, mode, onClose, onMarkDone }) {
       const [copied, setCopied] = React.useState(false);
       const [fallback, setFallback] = React.useState(false);
       const taRef = React.useRef(null);
+      const setupMode = mode === 'setup';
       const name = (account && (account.workspaceName || account.workspaceId)) || 'this workspace';
       // English command that names the workspace being set up.
       const command = 'Use the Notion setup skill to initialize Notion for my current workspace: “' + name + '”.';
@@ -84,8 +89,9 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
         h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
           h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
-          h('h3', null, 'Connected'),
-          h('p', { className: 'notion-modal-text' }, '“' + name + '” is connected.'),
+          h('h3', null, setupMode ? 'Set up this workspace' : 'Connected'),
+          h('p', { className: 'notion-modal-text' },
+            setupMode ? '“' + name + '” is not set up yet.' : '“' + name + '” is connected.'),
           h('p', { className: 'notion-modal-hint' },
             'If you already set Notion up before, you don’t need to do it again. Otherwise, copy the command, paste it into the message box, and press Enter.'),
           fallback
@@ -96,6 +102,9 @@ window.__ModuleLoader__.load({
             : null,
           h('div', { className: 'notion-modal-actions' },
             h('button', { className: 'notion-modal-btn primary', onClick: copy }, copied ? 'Copied' : 'Copy command'),
+            setupMode && onMarkDone
+              ? h('button', { className: 'notion-modal-btn', onClick: onMarkDone }, 'I’ve finished setup')
+              : null,
             h('button', { className: 'notion-modal-btn', onClick: onClose }, 'Done'))));
     }
 
@@ -153,7 +162,7 @@ window.__ModuleLoader__.load({
               // success modal offering to copy the setup command.
               const prevIds = new Set(accounts.accounts.map((x) => x.id));
               const fresh = a.accounts.find((x) => !prevIds.has(x.id)) || a.accounts[a.accounts.length - 1];
-              if (fresh) setSuccessModal(fresh);
+              if (fresh) setSuccessModal({ account: fresh, mode: 'connected' });
               return;
             }
           } catch { /* keep polling */ }
@@ -204,7 +213,15 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'notion-card-main' },
                   h('div', { className: 'notion-card-email' }, a.email || 'Notion user'),
                   h('div', { className: 'notion-card-ws' }, a.workspaceName || a.workspaceId || 'Workspace'),
-                  h('div', { className: 'subtle', style: { marginTop: 2, fontSize: 11 } }, setupLabel(a.id))),
+                  (function () {
+                    const st = setup[a.id];
+                    const notDone = st && !st.initialized && st.reason !== 'no-token' && st.reason !== 'probe-failed';
+                    const label = setupLabel(a.id);
+                    return notDone
+                      ? h('button', { className: 'notion-setup-link', disabled: busy, onClick: () => setSuccessModal({ account: a, mode: 'setup' }),
+                          title: 'Click to set up this workspace' }, label)
+                      : h('div', { className: 'subtle', style: { marginTop: 2, fontSize: 11 } }, label);
+                  })()),
                 h('button', { className: 'notion-btn danger', disabled: busy, onClick: () => run(() => post('/remove', { id: a.id })) }, 'Remove'))),
           h('div', { style: { marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
             h('button', { className: 'notion-btn primary', disabled: busy || waiting, onClick: connect },
@@ -221,7 +238,9 @@ window.__ModuleLoader__.load({
                 try { window.open(url, '_blank', 'noopener'); } catch (e) { /* popup blocked */ }
               },
             }, 'Open Notion') : null,
-            waiting ? h('span', { className: 'subtle', style: { margin: 0 } }, 'Waiting for you to finish in the browser…') : null)),
+            waiting ? h('span', { className: 'subtle', style: { margin: 0 } },
+              'Waiting for you to finish in the browser… ',
+              h('button', { className: 'notion-link-btn', onClick: connect, title: 'Reopen the connection page' }, 'Retry')) : null)),
         h('section', null,
           h('h3', null, 'Skills'),
           h('p', { className: 'subtle' }, 'Turn individual Notion skills on or off. Disabled skills stay hidden from the agent.'),
@@ -236,7 +255,17 @@ window.__ModuleLoader__.load({
                   onChange: (ev) => run(() => post('/skill', { name: s.name, enabled: ev.target.checked })),
                 })))),
         error ? h('div', { className: 'notion-err' }, error) : null,
-        successModal ? h(SuccessModal, { account: successModal, onClose: () => setSuccessModal(null) }) : null
+        successModal ? h(SuccessModal, {
+          account: successModal.account,
+          mode: successModal.mode,
+          onClose: () => setSuccessModal(null),
+          onMarkDone: async () => {
+            const id = successModal.account && successModal.account.id;
+            try { await post('/setup-done', { id }); } catch (e) { /* ignore */ }
+            setSuccessModal(null);
+            setSetup((prev) => ({ ...prev, [id]: { initialized: true } }));
+          },
+        }) : null
       );
     }
 
