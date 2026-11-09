@@ -17,6 +17,9 @@ A DSH port of Notion's official
   The agent can list and switch with `notion_list_workspaces` / `notion_use_workspace`.
 - **`notion_open_page`** — open a result in the desktop right-sidebar browser
   (or a new tab elsewhere).
+- **`notion_current_page`** — return the URL and page id of the page open in the
+  sidebar browser, so the agent can answer "what does this page say?" by reading
+  it. Reflects pages opened through Notion tools.
 
 There are no slash commands: DSH runs commands locally without sending them to
 the model, so the skills plus natural language replace them.

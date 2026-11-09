@@ -107,6 +107,20 @@ export async function apply(ctx, config = {}) {
   const getOpenPage = () => globalThis[OPEN_PAGE_KEY];
   const setOpenPage = (v) => { globalThis[OPEN_PAGE_KEY] = v; };
 
+  // Last Notion page the plugin opened in the sidebar browser. The agent reads
+  // this via notion_current_page to know which page the user is looking at.
+  const LAST_URL_KEY = '__dshNotionLastUrl';
+  const getLastUrl = () => globalThis[LAST_URL_KEY];
+  const setLastUrl = (v) => { globalThis[LAST_URL_KEY] = v; };
+
+  // Extract a Notion page id (32 hex chars, dashes optional) from a URL/string.
+  const parseNotionId = (src) => {
+    const m = String(src || '').replace(/-/g, '').match(/[0-9a-f]{32}/i);
+    if (!m) return undefined;
+    const id = m[0];
+    return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`;
+  };
+
   // ---- 1. Skills -----------------------------------------------------------
   // Skills are registered individually so a settings UI can enable/disable each
   // one (controlling modelInvocable) at runtime.
@@ -914,7 +928,27 @@ export async function apply(ctx, config = {}) {
           }
           // Remember the last page so a Client view can offer a "reopen" affordance.
           setOpenPage({ url, at: nowSec() });
+          setLastUrl({ url, pageId: parseNotionId(url), at: nowSec() });
           return JSON.stringify({ ok: true, url, markdown: `[Open in Notion](${url})` });
+        },
+      });
+      ctx.tools.register({
+        name: 'notion_current_page',
+        description: 'Return the Notion page currently open in the user\'s sidebar browser — its URL and page id — so you can answer questions about "this page" by reading it with the Notion tools. Only reflects pages opened through Notion tools; if the user navigated elsewhere manually, ask them to paste the link or call notion_open_page.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        output: textOutput,
+        async execute() {
+          const cur = getLastUrl();
+          if (!cur || !cur.url) {
+            return JSON.stringify({ ok: false, error: 'No page has been opened through Notion tools yet. Ask the user for the page URL, or call notion_open_page first.' });
+          }
+          return JSON.stringify({
+            ok: true,
+            url: cur.url,
+            pageId: cur.pageId || parseNotionId(cur.url),
+            openedAt: cur.at,
+            hint: 'Use notion page tools (search/fetch with this page id) to read its content.',
+          });
         },
       });
     } catch (e) {
