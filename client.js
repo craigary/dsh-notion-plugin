@@ -14,6 +14,97 @@ window.__ModuleLoader__.load({
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}),
     }).then((r) => r.json());
 
+    // ---- i18n (en / zh); skill names & descriptions stay English on purpose ----
+    let _localeId = 'en';
+    const _localeListeners = new Set();
+    const useLocale = () => {
+      const [, bump] = React.useState(0);
+      React.useEffect(() => {
+        const fn = () => bump((n) => n + 1);
+        _localeListeners.add(fn);
+        return () => { _localeListeners.delete(fn); };
+      }, []);
+      return _localeId;
+    };
+    const STRINGS = {
+      en: {
+        connectedAccounts: 'Connected accounts',
+        connectedHint: 'Notion workspaces connected to DeepSeek Harness. To finish setting up a workspace, ask the agent to run the Notion setup skill (once per workspace).',
+        noWorkspace: 'No Notion workspace connected yet.',
+        notionUser: 'Notion user',
+        workspace: 'Workspace',
+        remove: 'Remove',
+        connectAccount: 'Connect account',
+        connectAnother: 'Connect another account',
+        openNotion: 'Open Notion',
+        openNotionTitle: 'Open Notion; on the desktop app it opens in the right-side browser (sign in there once)',
+        waiting: 'Waiting for you to finish in the browser…',
+        retry: 'Retry',
+        retryTitle: 'Reopen the connection page',
+        setupChecking: 'Checking Notion setup…',
+        setupDone: 'Notion setup: done',
+        setupUnknown: 'Notion setup: unknown',
+        setupNotDone: 'Notion setup: not done',
+        setupClick: 'Click to set up this workspace',
+        skills: 'Skills',
+        skillsHint: 'Turn individual Notion skills on or off. Disabled skills stay hidden from the agent.',
+        noSkills: 'No skills loaded.',
+        serviceError: 'Cannot reach the Notion plugin service (localhost:53684). ',
+        modalConnectedTitle: 'Connected',
+        modalSetupTitle: 'Set up this workspace',
+        modalConnectedText: '“{name}” is connected.',
+        modalSetupText: '“{name}” is not set up yet.',
+        modalHint: 'If you already set Notion up before, you don’t need to do it again. Otherwise, copy the command, paste it into the message box, and press Enter.',
+        copyCommand: 'Copy command',
+        copied: 'Copied',
+        finishedSetup: 'I’ve finished setup',
+        close: 'Close',
+        command: 'Use the Notion setup skill to initialize Notion for my current workspace: “{name}”.',
+      },
+      zh: {
+        connectedAccounts: '已连接的账号',
+        connectedHint: '已连接到 DeepSeek Harness 的 Notion 工作区。要完成某个工作区的初始化，请让 agent 运行 Notion 初始化技能（每个工作区一次）。',
+        noWorkspace: '尚未连接任何 Notion 工作区。',
+        notionUser: 'Notion 用户',
+        workspace: '工作区',
+        remove: '移除',
+        connectAccount: '连接账号',
+        connectAnother: '连接其他账号',
+        openNotion: '打开 Notion',
+        openNotionTitle: '打开 Notion；桌面端会在右侧边栏浏览器中打开（在那里登录一次）',
+        waiting: '正在等待你在浏览器中完成操作…',
+        retry: '重试',
+        retryTitle: '重新打开连接页面',
+        setupChecking: '正在检查 Notion 配置…',
+        setupDone: 'Notion 配置：已完成',
+        setupUnknown: 'Notion 配置：未知',
+        setupNotDone: 'Notion 配置：未完成',
+        setupClick: '点击初始化此工作区',
+        skills: '技能',
+        skillsHint: '单独开启或关闭各个 Notion 技能。已关闭的技能不会显示给 agent。',
+        noSkills: '尚未加载任何技能。',
+        serviceError: '无法连接 Notion 插件服务（localhost:53684）。',
+        modalConnectedTitle: '已连接',
+        modalSetupTitle: '初始化此工作区',
+        modalConnectedText: '“{name}” 已连接。',
+        modalSetupText: '“{name}” 尚未初始化。',
+        modalHint: '如果你之前已经完成过配置，则无需再次配置。否则，请复制下面的命令，粘贴到输入框并回车。',
+        copyCommand: '拷贝命令',
+        copied: '已拷贝',
+        finishedSetup: '我已完成配置',
+        close: '关闭',
+        command: '请使用 Notion 初始化技能，为我的当前工作区完成初始化：{name}。',
+      },
+    };
+    const isZh = () => String(_localeId || '').toLowerCase().indexOf('zh') === 0;
+    const t = (key, vars) => {
+      const dict = STRINGS[isZh() ? 'zh' : 'en'] || STRINGS.en;
+      let s = dict[key];
+      if (s === undefined) s = (STRINGS.en[key] !== undefined ? STRINGS.en[key] : key);
+      if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
+      return s;
+    };
+
     const CSS = `
 .notion-settings{display:flex;flex-direction:column;gap:20px;color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));font-size:13px;line-height:20px}
 .notion-settings h3{margin:0 0 4px;font-size:14px;font-weight:600}
@@ -71,10 +162,11 @@ window.__ModuleLoader__.load({
       const [copied, setCopied] = React.useState(false);
       const [fallback, setFallback] = React.useState(false);
       const taRef = React.useRef(null);
+      useLocale();
       const setupMode = mode === 'setup';
       const name = (account && (account.workspaceName || account.workspaceId)) || 'this workspace';
       // English command that names the workspace being set up.
-      const command = 'Use the Notion setup skill to initialize Notion for my current workspace: “' + name + '”.';
+      const command = t('command', { name });
       const copy = async () => {
         try {
           if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
@@ -89,11 +181,10 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
         h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
           h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
-          h('h3', null, setupMode ? 'Set up this workspace' : 'Connected'),
+          h('h3', null, setupMode ? t('modalSetupTitle') : t('modalConnectedTitle')),
           h('p', { className: 'notion-modal-text' },
-            setupMode ? '“' + name + '” is not set up yet.' : '“' + name + '” is connected.'),
-          h('p', { className: 'notion-modal-hint' },
-            'If you already set Notion up before, you don’t need to do it again. Otherwise, copy the command, paste it into the message box, and press Enter.'),
+            setupMode ? t('modalSetupText', { name }) : t('modalConnectedText', { name })),
+          h('p', { className: 'notion-modal-hint' }, t('modalHint')),
           fallback
             ? h('textarea', {
                 ref: taRef, className: 'notion-modal-ta', readOnly: true, value: command,
@@ -101,14 +192,15 @@ window.__ModuleLoader__.load({
               })
             : null,
           h('div', { className: 'notion-modal-actions' },
-            h('button', { className: 'notion-modal-btn primary', onClick: copy }, copied ? 'Copied' : 'Copy command'),
+            h('button', { className: 'notion-modal-btn primary', onClick: copy }, copied ? t('copied') : t('copyCommand')),
             setupMode && onMarkDone
-              ? h('button', { className: 'notion-modal-btn', onClick: onMarkDone }, 'I’ve finished setup')
+              ? h('button', { className: 'notion-modal-btn', onClick: onMarkDone }, t('finishedSetup'))
               : null,
-            h('button', { className: 'notion-modal-btn', onClick: onClose }, 'Close'))));
+            h('button', { className: 'notion-modal-btn', onClick: onClose }, t('close')))));
     }
 
     function SettingsPage() {
+      useLocale();
       const [accounts, setAccounts] = React.useState({ accounts: [], activeId: undefined });
       const [skills, setSkills] = React.useState([]);
       const [setup, setSetup] = React.useState({}); // accountId -> {initialized}
@@ -131,7 +223,7 @@ window.__ModuleLoader__.load({
               .then((st) => setSetup((prev) => ({ ...prev, [acc.id]: st })))
               .catch(() => {});
           });
-        } catch (e) { setError('Cannot reach the Notion plugin service (localhost:53684). ' + (e && e.message ? e.message : '')); }
+        } catch (e) { setError(t('serviceError') + (e && e.message ? e.message : '')); }
       }, []);
 
       React.useEffect(() => { reload(); }, [reload]);
@@ -139,10 +231,10 @@ window.__ModuleLoader__.load({
       // Human-readable setup state for one account card.
       const setupLabel = (id) => {
         const st = setup[id];
-        if (!st) return 'Checking Notion setup…';
-        if (st.initialized) return 'Notion setup: done';
-        if (st.reason === 'no-token' || st.reason === 'probe-failed') return 'Notion setup: unknown';
-        return 'Notion setup: not done';
+        if (!st) return t('setupChecking');
+        if (st.initialized) return t('setupDone');
+        if (st.reason === 'no-token' || st.reason === 'probe-failed') return t('setupUnknown');
+        return t('setupNotDone');
       };
 
       // Poll while waiting for the browser authorization to complete in the other
@@ -201,34 +293,34 @@ window.__ModuleLoader__.load({
       return h('div', { className: 'notion-settings' },
         h('style', null, CSS),
         h('section', null,
-          h('h3', null, 'Connected accounts'),
-          h('p', { className: 'subtle' }, 'Notion workspaces connected to DeepSeek Harness. To finish setting up a workspace, ask the agent to run the Notion setup skill (once per workspace).'),
+          h('h3', null, t('connectedAccounts')),
+          h('p', { className: 'subtle' }, t('connectedHint')),
           accounts.accounts.length === 0
-            ? h('div', { className: 'notion-empty' }, 'No Notion workspace connected yet.')
+            ? h('div', { className: 'notion-empty' }, t('noWorkspace'))
             : accounts.accounts.map((a) => h('div', { className: 'notion-card', key: a.id },
                 h('div', { className: 'notion-logo' },
                   iconSrc(a.workspaceIcon)
                     ? h('img', { src: iconSrc(a.workspaceIcon), alt: '' })
                     : h('span', null, (typeof a.workspaceIcon === 'string' && a.workspaceIcon && !a.workspaceIcon.startsWith('/')) ? a.workspaceIcon : (a.workspaceName || 'N').slice(0, 1).toUpperCase())),
                 h('div', { className: 'notion-card-main' },
-                  h('div', { className: 'notion-card-email' }, a.email || 'Notion user'),
-                  h('div', { className: 'notion-card-ws' }, a.workspaceName || a.workspaceId || 'Workspace'),
+                  h('div', { className: 'notion-card-email' }, a.email || t('notionUser')),
+                  h('div', { className: 'notion-card-ws' }, a.workspaceName || a.workspaceId || t('workspace')),
                   (function () {
                     const st = setup[a.id];
                     const notDone = st && !st.initialized && st.reason !== 'no-token' && st.reason !== 'probe-failed';
                     const label = setupLabel(a.id);
                     return notDone
                       ? h('button', { className: 'notion-setup-link', disabled: busy, onClick: () => setSuccessModal({ account: a, mode: 'setup' }),
-                          title: 'Click to set up this workspace' }, label)
+                          title: t('setupClick') }, label)
                       : h('div', { className: 'subtle', style: { marginTop: 2, fontSize: 11 } }, label);
                   })()),
-                h('button', { className: 'notion-btn danger', disabled: busy, onClick: () => run(() => post('/remove', { id: a.id })) }, 'Remove'))),
+                h('button', { className: 'notion-btn danger', disabled: busy, onClick: () => run(() => post('/remove', { id: a.id })) }, t('remove')))),
           h('div', { style: { marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
             h('button', { className: 'notion-btn primary', disabled: busy || waiting, onClick: connect },
-              accounts.accounts.length === 0 ? 'Connect account' : 'Connect another account'),
+              accounts.accounts.length === 0 ? t('connectAccount') : t('connectAnother')),
             accounts.accounts.length > 0 ? h('button', {
               className: 'notion-btn', disabled: busy,
-              title: 'Open Notion; on the desktop app it opens in the right-side browser (sign in there once)',
+              title: t('openNotionTitle'),
               onClick: () => {
                 const url = 'https://www.notion.so';
                 try {
@@ -237,14 +329,14 @@ window.__ModuleLoader__.load({
                 } catch (e) { /* fall through */ }
                 try { window.open(url, '_blank', 'noopener'); } catch (e) { /* popup blocked */ }
               },
-            }, 'Open Notion') : null,
+            }, t('openNotion')) : null,
             waiting ? h('span', { className: 'subtle', style: { margin: 0 } },
-              'Waiting for you to finish in the browser… ',
-              h('button', { className: 'notion-link-btn', onClick: connect, title: 'Reopen the connection page' }, 'Retry')) : null)),
+              t('waiting') + ' ',
+              h('button', { className: 'notion-link-btn', onClick: connect, title: t('retryTitle') }, t('retry'))) : null)),
         h('section', null,
-          h('h3', null, 'Skills'),
-          h('p', { className: 'subtle' }, 'Turn individual Notion skills on or off. Disabled skills stay hidden from the agent.'),
-          skills.length === 0 ? h('div', { className: 'notion-empty' }, 'No skills loaded.')
+          h('h3', null, t('skills')),
+          h('p', { className: 'subtle' }, t('skillsHint')),
+          skills.length === 0 ? h('div', { className: 'notion-empty' }, t('noSkills'))
             : skills.map((s) => h('div', { className: 'notion-skill', key: s.name },
                 h('div', { className: 'notion-skill-main' },
                   h('div', { className: 'notion-skill-title' }, s.title || s.name),
@@ -272,6 +364,21 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
+        // Track the DSH UI locale so the settings page can localize; skill names
+        // and descriptions stay English by design.
+        try {
+          const loc = ctx.get('locale');
+          if (loc && typeof loc.getLocale === 'function') {
+            const snap = loc.getLocale();
+            if (snap && snap.id) _localeId = snap.id;
+            if (typeof loc.subscribe === 'function') {
+              loc.subscribe(() => {
+                try { const s = loc.getLocale(); if (s && s.id) _localeId = s.id; } catch (e) {}
+                _localeListeners.forEach((fn) => { try { fn(); } catch (e) {} });
+              });
+            }
+          }
+        } catch (e) { /* locale service unavailable; keep en */ }
         // Notion "N" mark used for the settings nav icon.
         const NOTION_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 335 350" width="100%" height="100%" fill="none"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M214.701 0.796296L21.056 15.0565C5.44153 16.4088 0 26.5954 0 38.8077V250.61C0 260.126 3.3919 268.259 11.5487 279.13L57.0693 338.19C64.5464 347.701 71.3416 349.735 85.6192 349.054L310.498 335.475C329.518 334.124 334.958 325.292 334.958 310.358V72.0749C334.958 64.3554 331.904 62.1254 322.899 55.5518C322.404 55.1901 321.891 54.8153 321.359 54.4257L259.545 10.9802C244.599 0.122938 238.481 -1.24326 214.701 0.796296ZM90.718 68.1664C72.3581 69.4062 68.1862 69.6879 57.7599 61.2177L31.2457 40.1737C28.5415 37.4525 29.8978 34.0579 36.6871 33.3847L222.855 19.8061C238.478 18.4455 246.629 23.8852 252.747 28.635L284.678 51.7183C286.038 52.3944 289.429 56.4624 285.351 56.4624L93.0882 68.0071C92.2729 68.0614 91.4837 68.1147 90.719 68.1664L90.718 68.1664ZM69.3031 308.318V106.024C69.3031 97.2006 72.021 93.1245 80.1694 92.4398L300.977 79.5458C308.466 78.867 311.857 83.6223 311.857 92.4398V293.376C311.857 302.208 310.495 309.686 298.261 310.358L86.9643 322.584C74.7361 323.257 69.3031 319.19 69.3031 308.318ZM277.894 116.876C279.249 122.992 277.894 129.102 271.768 129.789L261.586 131.817V281.164C252.747 285.915 244.596 288.631 237.804 288.631C226.929 288.631 224.206 285.234 216.06 275.056L149.467 170.513V271.662L170.539 276.417C170.539 276.417 170.539 288.631 153.538 288.631L106.67 291.349C105.308 288.631 106.67 281.848 111.424 280.488L123.654 277.099V143.362L106.672 142.001C105.311 135.886 108.703 127.068 118.221 126.383L168.501 122.994L237.804 228.898V135.212L220.135 133.184C218.778 125.707 224.206 120.278 231.001 119.605L277.894 116.876Z"/></svg>';
         function NotionIcon(props) {
