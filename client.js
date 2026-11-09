@@ -369,13 +369,16 @@ window.__ModuleLoader__.load({
         try {
           const loc = ctx.get('locale');
           if (loc && typeof loc.getLocale === 'function') {
-            const snap = loc.getLocale();
-            if (snap && snap.id) _localeId = snap.id;
+            const read = () => {
+              try {
+                const s = loc.getLocale();
+                const id = s && (s.active || s.id || (s.locales && s.active));
+                if (id) _localeId = id;
+              } catch (e) {}
+            };
+            read();
             if (typeof loc.subscribe === 'function') {
-              loc.subscribe(() => {
-                try { const s = loc.getLocale(); if (s && s.id) _localeId = s.id; } catch (e) {}
-                _localeListeners.forEach((fn) => { try { fn(); } catch (e) {} });
-              });
+              loc.subscribe(() => { read(); _localeListeners.forEach((fn) => { try { fn(); } catch (e) {} }); });
             }
           }
         } catch (e) { /* locale service unavailable; keep en */ }
