@@ -371,8 +371,10 @@ window.__ModuleLoader__.load({
           if (loc && typeof loc.getLocale === 'function') {
             const read = () => {
               try {
-                const s = loc.getLocale();
-                const id = s && (s.active || s.id || (s.locales && s.active));
+                let s = null;
+                if (typeof loc.getLocale === 'function') s = loc.getLocale();
+                else if (typeof loc.getSnapshot === 'function') s = loc.getSnapshot();
+                const id = s && (s.active || s.id);
                 if (id) _localeId = id;
               } catch (e) {}
             };
