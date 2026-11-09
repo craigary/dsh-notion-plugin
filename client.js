@@ -42,15 +42,23 @@ window.__ModuleLoader__.load({
 .notion-empty{color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6));padding:8px 0}
 .notion-err{color:#d4384a;font-size:12px}
 .notion-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:9999}
-.notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:14px;padding:22px 22px 18px;width:min(92vw,380px);box-shadow:0 12px 40px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:8px}
-.notion-modal-icon{font-size:26px;line-height:1}
-.notion-modal h3{margin:0;font-size:16px;font-weight:600}
-.notion-modal-text{margin:0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6))}
-.notion-modal-ta{width:100%;box-sizing:border-box;margin-top:2px;font:12px/18px ui-monospace,Menlo,monospace;color:inherit;background:var(--dsw-alias-bg-layer-1,light-dark(#f3f4f5,#232427));border:.5px solid var(--dsw-alias-border-l2,#ddd);border-radius:8px;padding:8px;resize:vertical}
-.notion-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
+.notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:16px;padding:28px 24px 22px;width:min(92vw,400px);box-shadow:0 16px 48px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
+.notion-modal-icon{width:52px;height:52px;display:block;margin-bottom:2px}
+.notion-modal h3{margin:0;font-size:18px;font-weight:600}
+.notion-modal-text{margin:0;font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb))}
+.notion-modal-hint{margin:0;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6))}
+.notion-modal-copied{margin:0;font-size:12.5px;line-height:18px;color:#22c55e;min-height:18px}
+.notion-modal-ta{width:100%;box-sizing:border-box;font:12px/18px ui-monospace,Menlo,monospace;color:inherit;background:var(--dsw-alias-bg-layer-1,light-dark(#f3f4f5,#232427));border:.5px solid var(--dsw-alias-border-l2,#ddd);border-radius:8px;padding:8px;resize:vertical;text-align:left}
+.notion-modal-actions{display:flex;gap:10px;justify-content:center;width:100%;margin-top:8px}
+.notion-btn.big{height:40px;padding:0 22px;font-size:14px;border-radius:9px}
 `;
 
     const SETUP_COMMAND = '帮我初始化 Notion（运行 notion-setup 技能）';
+    // Inline check-mark icon (no emoji).
+    const CHECK_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">' +
+      '<circle cx="24" cy="24" r="22" fill="#22c55e"/>' +
+      '<path d="M15 24.5l6 6 12-13" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 
     // Modal shown right after a workspace connects: confirms success and offers
     // to copy the setup command. Falls back to a selectable textarea when the
@@ -68,27 +76,26 @@ window.__ModuleLoader__.load({
             return;
           }
         } catch (e) { /* fall through */ }
-        // Fallback: reveal a selectable textarea and select it.
         setFallback(true);
         setTimeout(() => { try { taRef.current && taRef.current.select(); } catch (e) {} }, 0);
       };
       return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
         h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
-          h('div', { className: 'notion-modal-icon' }, h('span', null, '✅')),
+          h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
           h('h3', null, 'Connected'),
           h('p', { className: 'notion-modal-text' },
-            'Notion workspace “' + name + '” is connected. To finish setting it up (once per workspace), run the Notion setup skill.'),
+            'Notion workspace “' + name + '” is connected.'),
+          h('p', { className: 'notion-modal-hint' },
+            'If you have already set Notion up before, you don’t need to do it again. Otherwise, copy the command below, paste it into the message box, and press Enter.'),
           fallback
-            ? h('div', null,
-                h('p', { className: 'subtle', style: { marginBottom: 6 } }, 'Copy this into the message box and press Enter:'),
-                h('textarea', {
-                  ref: taRef, className: 'notion-modal-ta', readOnly: true, value: SETUP_COMMAND,
-                  onFocus: (e) => { try { e.target.select(); } catch (er) {} }, rows: 2,
-                }))
-            : h('p', { className: 'subtle' }, copied ? '✅ Copied. Paste it into the message box and press Enter.' : 'Copy this command, paste it into the message box, and press Enter.'),
+            ? h('textarea', {
+                ref: taRef, className: 'notion-modal-ta', readOnly: true, value: SETUP_COMMAND,
+                onFocus: (e) => { try { e.target.select(); } catch (er) {} }, rows: 2,
+              })
+            : h('p', { className: 'notion-modal-copied' }, copied ? '✓ Copied. Paste it into the message box and press Enter.' : ''),
           h('div', { className: 'notion-modal-actions' },
-            h('button', { className: 'notion-btn primary', onClick: copy }, copied ? 'Copied' : 'Copy setup command'),
-            h('button', { className: 'notion-btn', onClick: onClose }, 'Close'))));
+            h('button', { className: 'notion-btn primary big', onClick: copy }, copied ? '已拷贝' : '拷贝'),
+            h('button', { className: 'notion-btn big', onClick: onClose }, '完成'))));
     }
 
     function SettingsPage() {
