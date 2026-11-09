@@ -16,7 +16,7 @@
         reconnect:
           enabled: true
     - id: notion-workspace-features
-      name: '@local/dsh-notion-plugin'
+      name: 'dsh-notion-plugin'
       config:
         # OAuth uses dynamic client registration (RFC 7591); no static client
         # credentials are configured. Redirect URI must match the loopback

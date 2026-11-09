@@ -10,8 +10,7 @@ import { fileURLToPath } from 'node:url';
  *
  * Provides:
  * 1. 12 Notion skills from the official Notion Cookbook
- * 2. Slash commands for quick Notion actions
- * 3. A Notion MCP connection using the MCP OAuth 2.0 authorization-code flow
+ * 2. A Notion MCP connection using the MCP OAuth 2.0 authorization-code flow
  *    (PKCE), reached through a local authenticated proxy so the MCP client
  *    only ever sees a stable loopback URL.
  *

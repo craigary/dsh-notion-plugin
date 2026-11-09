@@ -1,7 +1,7 @@
 {
-  "name": "@local/dsh-notion-plugin",
-  "version": "1.1.0",
-  "description": "Notion workspace plugin for DeepSeek Harness: MCP OAuth (DCR) connection, multi-account settings UI, 12 Notion skills with per-skill toggles, and workflow commands",
+  "name": "dsh-notion-plugin",
+  "version": "0.1.0",
+  "description": "Notion workspace plugin for DeepSeek Harness: MCP OAuth (DCR) connection, multi-account settings UI, and 12 Notion skills with per-skill toggles",
   "private": true,
   "type": "module",
   "exports": {
@@ -17,7 +17,6 @@
     "locale/*.json",
     "icon.svg",
     "skills",
-    "commands",
     "README.md"
   ],
   "dsh": {
@@ -27,7 +26,9 @@
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-settings-shell"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings-shell"
+      ]
     }
   },
   "peerDependencies": {

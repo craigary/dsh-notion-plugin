@@ -3,7 +3,7 @@
 // The Host plugin runs a small loopback JSON API (localhost:53684) that this
 // page calls directly, so the UI needs no typert Remote bridge.
 window.__ModuleLoader__.load({
-  id: '@local/dsh-notion-plugin',
+  id: 'dsh-notion-plugin',
   factory(require) {
     const React = require('react');
     const h = React.createElement;
