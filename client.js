@@ -105,7 +105,7 @@ window.__ModuleLoader__.load({
             setupMode && onMarkDone
               ? h('button', { className: 'notion-modal-btn', onClick: onMarkDone }, 'I’ve finished setup')
               : null,
-            h('button', { className: 'notion-modal-btn', onClick: onClose }, 'Done'))));
+            h('button', { className: 'notion-modal-btn', onClick: onClose }, 'Close'))));
     }
 
     function SettingsPage() {
