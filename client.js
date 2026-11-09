@@ -14,19 +14,9 @@ window.__ModuleLoader__.load({
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}),
     }).then((r) => r.json());
 
-    // ---- i18n (en / zh); skill names & descriptions stay English on purpose ----
-    let _localeId = 'en';
-    const _localeListeners = new Set();
-    const useLocale = () => {
-      const [, bump] = React.useState(0);
-      React.useEffect(() => {
-        const fn = () => bump((n) => n + 1);
-        _localeListeners.add(fn);
-        return () => { _localeListeners.delete(fn); };
-      }, []);
-      return _localeId;
-    };
-    const STRINGS = {
+    // ---- i18n via the official client locale service; skills stay English ----
+    const LOCALE_NS = 'dsh-notion-plugin';
+    const DICT = {
       en: {
         connectedAccounts: 'Connected accounts',
         connectedHint: 'Notion workspaces connected to DeepSeek Harness. To finish setting up a workspace, ask the agent to run the Notion setup skill (once per workspace).',
@@ -96,12 +86,23 @@ window.__ModuleLoader__.load({
         command: '请使用 Notion 初始化技能，为我的当前工作区完成初始化：{name}。',
       },
     };
-    const isZh = () => String(_localeId || '').toLowerCase().indexOf('zh') === 0;
+    // `_t` is the locale-bound translate function set in apply(); falls back to EN.
+    let _ctx = null;
+    let _t = (key) => (DICT.en[key] !== undefined ? DICT.en[key] : key);
+    const _localeListeners = new Set();
+    const useLocale = () => {
+      const [, bump] = React.useState(0);
+      React.useEffect(() => {
+        const fn = () => bump((n) => n + 1);
+        _localeListeners.add(fn);
+        return () => { _localeListeners.delete(fn); };
+      }, []);
+      return null;
+    };
     const t = (key, vars) => {
-      const dict = STRINGS[isZh() ? 'zh' : 'en'] || STRINGS.en;
-      let s = dict[key];
-      if (s === undefined) s = (STRINGS.en[key] !== undefined ? STRINGS.en[key] : key);
-      if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
+      let s = _t(key);
+      if (s === undefined || s === key) s = (DICT.en[key] !== undefined ? DICT.en[key] : key);
+      if (vars) s = String(s).replace(/\{(\w+)\}/g, (m, k) => (vars[k] !== undefined ? String(vars[k]) : m));
       return s;
     };
 
@@ -324,7 +325,7 @@ window.__ModuleLoader__.load({
               onClick: () => {
                 const url = 'https://www.notion.so';
                 try {
-                  const sr = ctx.get('sidebarRight');
+                  const sr = _ctx && _ctx.get('sidebarRight');
                   if (sr && typeof sr.openTab === 'function') { sr.openTab('browser', { params: { url } }); return; }
                 } catch (e) { /* fall through */ }
                 try { window.open(url, '_blank', 'noopener'); } catch (e) { /* popup blocked */ }
@@ -364,26 +365,17 @@ window.__ModuleLoader__.load({
     return {
       inject: ['slots'],
       apply(ctx) {
-        // Track the DSH UI locale so the settings page can localize; skill names
-        // and descriptions stay English by design.
+        _ctx = ctx;
+        // Locale: register our dictionaries and bind a translate function, using
+        // the official client locale service (inject: ['locale']).
         try {
-          const loc = ctx.get('locale');
-          if (loc && typeof loc.getLocale === 'function') {
-            const read = () => {
-              try {
-                let s = null;
-                if (typeof loc.getLocale === 'function') s = loc.getLocale();
-                else if (typeof loc.getSnapshot === 'function') s = loc.getSnapshot();
-                const id = s && (s.active || s.id);
-                if (id) _localeId = id;
-              } catch (e) {}
-            };
-            read();
-            if (typeof loc.subscribe === 'function') {
-              loc.subscribe(() => { read(); _localeListeners.forEach((fn) => { try { fn(); } catch (e) {} }); });
-            }
+          ctx.locale.register(LOCALE_NS, DICT);
+          _t = ctx.locale.bind(LOCALE_NS);
+          _localeListeners.clear();
+          if (typeof ctx.locale.subscribe === 'function') {
+            ctx.locale.subscribe(() => { _localeListeners.forEach((fn) => { try { fn(); } catch (e) {} }); });
           }
-        } catch (e) { /* locale service unavailable; keep en */ }
+        } catch (e) { /* locale service unavailable; keep EN fallback */ }
         // Notion "N" mark used for the settings nav icon.
         const NOTION_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 335 350" width="100%" height="100%" fill="none"><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M214.701 0.796296L21.056 15.0565C5.44153 16.4088 0 26.5954 0 38.8077V250.61C0 260.126 3.3919 268.259 11.5487 279.13L57.0693 338.19C64.5464 347.701 71.3416 349.735 85.6192 349.054L310.498 335.475C329.518 334.124 334.958 325.292 334.958 310.358V72.0749C334.958 64.3554 331.904 62.1254 322.899 55.5518C322.404 55.1901 321.891 54.8153 321.359 54.4257L259.545 10.9802C244.599 0.122938 238.481 -1.24326 214.701 0.796296ZM90.718 68.1664C72.3581 69.4062 68.1862 69.6879 57.7599 61.2177L31.2457 40.1737C28.5415 37.4525 29.8978 34.0579 36.6871 33.3847L222.855 19.8061C238.478 18.4455 246.629 23.8852 252.747 28.635L284.678 51.7183C286.038 52.3944 289.429 56.4624 285.351 56.4624L93.0882 68.0071C92.2729 68.0614 91.4837 68.1147 90.719 68.1664L90.718 68.1664ZM69.3031 308.318V106.024C69.3031 97.2006 72.021 93.1245 80.1694 92.4398L300.977 79.5458C308.466 78.867 311.857 83.6223 311.857 92.4398V293.376C311.857 302.208 310.495 309.686 298.261 310.358L86.9643 322.584C74.7361 323.257 69.3031 319.19 69.3031 308.318ZM277.894 116.876C279.249 122.992 277.894 129.102 271.768 129.789L261.586 131.817V281.164C252.747 285.915 244.596 288.631 237.804 288.631C226.929 288.631 224.206 285.234 216.06 275.056L149.467 170.513V271.662L170.539 276.417C170.539 276.417 170.539 288.631 153.538 288.631L106.67 291.349C105.308 288.631 106.67 281.848 111.424 280.488L123.654 277.099V143.362L106.672 142.001C105.311 135.886 108.703 127.068 118.221 126.383L168.501 122.994L237.804 228.898V135.212L220.135 133.184C218.778 125.707 224.206 120.278 231.001 119.605L277.894 116.876Z"/></svg>';
         function NotionIcon(props) {
@@ -415,7 +407,7 @@ window.__ModuleLoader__.load({
                   // sidebar browser, so we do NOT auto-open a window here — the
                   // tool result already carries a clickable link for the user.
                   try {
-                    const sr = ctx.get('sidebarRight');
+                    const sr = _ctx && _ctx.get('sidebarRight');
                     if (sr && typeof sr.openTab === 'function') sr.openTab('browser', { params: { url: r.url } });
                   } catch (e) { /* no sidebar browser (web): leave it to the link */ }
                   fetch(API + '/last-open?ack=' + r.at).catch(() => {});
