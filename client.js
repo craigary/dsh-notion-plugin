@@ -46,6 +46,7 @@ window.__ModuleLoader__.load({
     function SettingsPage() {
       const [accounts, setAccounts] = React.useState({ accounts: [], activeId: undefined });
       const [skills, setSkills] = React.useState([]);
+      const [setup, setSetup] = React.useState({}); // accountId -> {initialized}
       const [error, setError] = React.useState('');
       const [busy, setBusy] = React.useState(false);
       const [waiting, setWaiting] = React.useState(false);
@@ -56,10 +57,27 @@ window.__ModuleLoader__.load({
           setAccounts(a && a.accounts ? a : { accounts: [], activeId: undefined });
           setSkills((s && s.skills) || []);
           setError('');
+          // Probe each workspace's Notion setup state (read from the workspace,
+          // not local state, so it survives disconnect/reconnect). Best-effort.
+          const list = (a && a.accounts) || [];
+          list.forEach((acc) => {
+            get('/setup-status?id=' + encodeURIComponent(acc.id))
+              .then((st) => setSetup((prev) => ({ ...prev, [acc.id]: st })))
+              .catch(() => {});
+          });
         } catch (e) { setError('Cannot reach the Notion plugin service (localhost:53684). ' + (e && e.message ? e.message : '')); }
       }, []);
 
       React.useEffect(() => { reload(); }, [reload]);
+
+      // Human-readable setup state for one account card.
+      const setupLabel = (id) => {
+        const st = setup[id];
+        if (!st) return 'Checking Notion setup…';
+        if (st.initialized) return 'Notion setup: done';
+        if (st.reason === 'no-token' || st.reason === 'probe-failed') return 'Notion setup: unknown';
+        return 'Notion setup: not done';
+      };
 
       // Poll while waiting for the browser authorization to complete in the other
       // tab; stop as soon as the account count grows.
@@ -113,7 +131,7 @@ window.__ModuleLoader__.load({
         h('style', null, CSS),
         h('section', null,
           h('h3', null, 'Connected accounts'),
-          h('p', { className: 'subtle' }, 'Notion workspaces connected to DeepSeek Harness.'),
+          h('p', { className: 'subtle' }, 'Notion workspaces connected to DeepSeek Harness. To finish setting up a workspace, ask the agent to run the Notion setup skill (once per workspace).'),
           accounts.accounts.length === 0
             ? h('div', { className: 'notion-empty' }, 'No Notion workspace connected yet.')
             : accounts.accounts.map((a) => h('div', { className: 'notion-card', key: a.id },
@@ -123,7 +141,8 @@ window.__ModuleLoader__.load({
                     : h('span', null, (typeof a.workspaceIcon === 'string' && a.workspaceIcon && !a.workspaceIcon.startsWith('/')) ? a.workspaceIcon : (a.workspaceName || 'N').slice(0, 1).toUpperCase())),
                 h('div', { className: 'notion-card-main' },
                   h('div', { className: 'notion-card-email' }, a.email || 'Notion user'),
-                  h('div', { className: 'notion-card-ws' }, a.workspaceName || a.workspaceId || 'Workspace')),
+                  h('div', { className: 'notion-card-ws' }, a.workspaceName || a.workspaceId || 'Workspace'),
+                  h('div', { className: 'subtle', style: { marginTop: 2, fontSize: 11 } }, setupLabel(a.id))),
                 h('button', { className: 'notion-btn danger', disabled: busy, onClick: () => run(() => post('/remove', { id: a.id })) }, 'Remove'))),
           h('div', { style: { marginTop: 12, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' } },
             h('button', { className: 'notion-btn primary', disabled: busy || waiting, onClick: connect },

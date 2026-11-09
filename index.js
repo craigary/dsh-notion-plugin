@@ -445,6 +445,67 @@ export async function apply(ctx, config = {}) {
     return JSON.parse(content);
   }
 
+  /**
+   * Call one Notion MCP tool with the given access token (JSON-RPC over HTTP).
+   * Returns the parsed `result` object, or undefined on failure.
+   */
+  async function notionSessionCall(token, toolName, args) {
+    const post = async (body, sid) => {
+      const headers = {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `Bearer ${token}`,
+      };
+      if (sid) headers['mcp-session-id'] = sid;
+      const res = await fetch(cfg.notionMcpUrl, { method: 'POST', headers, body: JSON.stringify(body) });
+      return res;
+    };
+    const initRes = await post({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'dsh-notion-plugin', version: '1.0' } } });
+    if (!initRes.ok) throw new Error(`initialize ${initRes.status}`);
+    const sid = initRes.headers.get('mcp-session-id') || undefined;
+    await initRes.text();
+    await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid).catch(() => {});
+    const callRes = await post({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: toolName, arguments: args || {} } }, sid);
+    const text = await callRes.text();
+    const dataLine = text.split('\n').find((l) => l.startsWith('data:'));
+    const payload = JSON.parse(dataLine ? dataLine.slice(5).trim() : text);
+    const content = payload?.result?.content?.[0]?.text;
+    if (!content) return undefined;
+    try { return JSON.parse(content); } catch { return content; }
+  }
+
+  /**
+   * Detect whether the account's workspace has completed the official Notion
+   * setup (notion-setup). This reads the workspace (not local state), so it stays
+   * correct across disconnect/reconnect. Signals, per the official guide:
+   *  - a page titled exactly "Agent Operating Guide", or
+   *  - a memory titled exactly "Notion agent setup choice".
+   */
+  async function probeSetupStatus(accountId) {
+    const token = await ensureFreshTokenFor(accountId).catch(() => undefined);
+    if (!token) return { initialized: false, reason: 'no-token' };
+    const exact = (items, title) => (items || []).find((it) => (it.title || '').trim().toLowerCase() === title.toLowerCase());
+    try {
+      let guide;
+      try {
+        const s = await notionSessionCall(token, 'notion-search', { query: 'Agent Operating Guide', page_size: 10 });
+        guide = exact(s && s.results, 'Agent Operating Guide');
+      } catch { /* search may be unavailable */ }
+      let memory;
+      try {
+        const m = await notionSessionCall(token, 'notion-memory-search', { query: 'Notion agent setup choice', limit: 10 });
+        memory = exact(m && m.results, 'Notion agent setup choice');
+      } catch { /* memory may be unavailable */ }
+      const found = guide || memory;
+      return {
+        initialized: Boolean(found),
+        evidence: found ? { id: found.id, title: found.title, url: found.url, via: guide ? 'guide' : 'memory' } : undefined,
+      };
+    } catch (e) {
+      return { initialized: false, reason: e && e.message ? e.message : 'probe-failed' };
+    }
+  }
+
   async function buildAuthorizationUrl() {    const client = await ensureClient();
     const { verifier, challenge } = pkcePair();
     const st = b64url(randomBytes(16));
@@ -637,6 +698,9 @@ export async function apply(ctx, config = {}) {
       }
       if (p === '/api/auth-url' && req.method === 'GET') {
         return send(200, await notionService.beginAuthorization());
+      }
+      if (p === '/api/setup-status' && req.method === 'GET') {
+        return send(200, await notionService.setupStatus(u.searchParams.get('id') || undefined));
       }
       if (p === '/api/last-open' && req.method === 'GET') {
         // Return the most recent notion_open_page request (consumed by the Client
@@ -850,6 +914,12 @@ export async function apply(ctx, config = {}) {
       await setSkillEnabled(name, Boolean(enabled));
       return this.listSkills();
     },
+    async setupStatus(accountId) {
+      const store = await readAccounts();
+      const id = accountId || store.activeId;
+      if (!id) return { initialized: false, reason: 'no-account' };
+      return probeSetupStatus(id);
+    },
   };
   // `notionService` backs both the management API and the agent tools below.
   void notionService;
@@ -949,6 +1019,26 @@ export async function apply(ctx, config = {}) {
             openedAt: cur.at,
             hint: 'Use notion page tools (search/fetch with this page id) to read its content.',
           });
+        },
+      });
+      ctx.tools.register({
+        name: 'notion_setup_status',
+        description: 'Check whether a Notion workspace has completed the official Notion setup (the notion-setup skill: an "Agent Operating Guide" page and setup-choice memory). Reads the workspace itself, so the result is correct across disconnect/reconnect. Pass a workspace id (defaults to the active one).',
+        parameters: {
+          type: 'object',
+          properties: { workspace: { type: 'string', description: 'Workspace id (optional; defaults to the active workspace)' } },
+          additionalProperties: false,
+        },
+        output: textOutput,
+        async execute(args) {
+          const store = await readAccounts();
+          const want = String((args && args.workspace) || '').trim();
+          const acct = want
+            ? store.accounts.find((a) => a.id === want || a.workspace_id === want || a.workspace_name === want)
+            : store.accounts.find((a) => a.id === store.activeId);
+          if (!acct) return JSON.stringify({ ok: false, error: want ? `No connected workspace matches "${want}"` : 'No connected workspace' });
+          const st = await probeSetupStatus(acct.id);
+          return JSON.stringify({ ok: true, workspace: acct.workspace_name, initialized: st.initialized, evidence: st.evidence, reason: st.reason });
         },
       });
     } catch (e) {
