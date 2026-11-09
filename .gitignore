@@ -1,0 +1,9 @@
+# OS
+.DS_Store
+
+# Reference copy of the upstream Claude plugin (kept locally, not part of this bundle)
+.ref-claude-plugin/
+
+# Dependencies / build
+node_modules/
+*.log

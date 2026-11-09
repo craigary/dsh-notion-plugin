@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Notion 工作区集成",
+    "description": "通过 MCP OAuth 授权流程将 DeepSeek Harness 连接至 Notion：12 项 Notion 专项技能、斜杠快捷命令，以及本地鉴权 MCP 代理。"
+  }
+}

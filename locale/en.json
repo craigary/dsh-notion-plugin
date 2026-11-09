@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Notion workspace",
+    "description": "Connect DeepSeek Harness to Notion through the MCP OAuth flow: 12 specialized Notion skills, workflow slash commands, and a local authenticated MCP proxy."
+  }
+}
