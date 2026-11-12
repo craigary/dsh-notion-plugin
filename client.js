@@ -139,7 +139,7 @@ window.__ModuleLoader__.load({
 .notion-err{color:#d4384a;font-size:12px}
 .notion-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:9999}
 .notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:18px;padding:26px 20px 20px;width:min(88vw,300px);box-shadow:0 16px 48px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:10px}
-.notion-modal-icon{width:52px;height:52px;display:block;margin:0 auto 2px}
+.notion-modal-icon{width:52px;height:52px;display:block;margin:4px auto 16px}
 .notion-modal h3{margin:0;font-size:18px;font-weight:600}
 .notion-modal-text{margin:0;font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb))}
 .notion-modal-hint{margin:0;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6))}
@@ -194,7 +194,7 @@ window.__ModuleLoader__.load({
           h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
           h('h3', null, t('modalConnectedTitle')),
           setupMode
-            ? h('p', { className: 'notion-modal-text' }, t('modalSetupBody'))
+            ? h('p', { className: 'notion-modal-text' }, t('modalSetupBody', { name }))
             : h('p', { className: 'notion-modal-text' }, t('modalConnectedText', { name })),
           setupMode ? null : h('p', { className: 'notion-modal-hint' }, t('modalHint')),
           fallback
