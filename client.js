@@ -43,6 +43,8 @@ window.__ModuleLoader__.load({
         modalConnectedTitle: 'Connected',
         modalSetupTitle: 'Set up this workspace',
         modalConnectedText: '“{name}” is connected.',
+        modalSetupLead: '“{name}” is connected successfully.',
+        modalSetupBody: 'This workspace is not set up yet. If you already set it up before, you can skip this.',
         modalSetupText: '“{name}” is not set up yet.',
         modalHint: 'If you already set Notion up before, you don’t need to do it again. Otherwise, copy the command, paste it into the message box, and press Enter.',
         copyCommand: 'Copy command',
@@ -77,6 +79,8 @@ window.__ModuleLoader__.load({
         modalConnectedTitle: '已连接',
         modalSetupTitle: '初始化此工作区',
         modalConnectedText: '“{name}” 已连接。',
+        modalSetupLead: '“{name}” 已成功连接。',
+        modalSetupBody: '这个工作区还没有完成初始化。如果你之前已经完成过，可以跳过。',
         modalSetupText: '“{name}” 尚未初始化。',
         modalHint: '如果你之前已经完成过配置，则无需再次配置。否则，请复制下面的命令，粘贴到输入框并回车。',
         copyCommand: '拷贝命令',
@@ -155,6 +159,12 @@ window.__ModuleLoader__.load({
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">' +
       '<circle cx="24" cy="24" r="22" fill="#22c55e"/>' +
       '<path d="M15 24.5l6 6 12-13" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    // Neutral "info / pending" icon (amber) for the not-yet-set-up state.
+    const INFO_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">' +
+      '<circle cx="24" cy="24" r="22" fill="#f59e0b"/>' +
+      '<path d="M24 14v13" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/>' +
+      '<circle cx="24" cy="33" r="2.2" fill="#fff"/></svg>');
 
     // Modal shown right after a workspace connects: confirms success and offers
     // to copy the setup command. Falls back to a selectable textarea when the
@@ -181,10 +191,12 @@ window.__ModuleLoader__.load({
       };
       return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
         h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
-          h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
-          h('h3', null, setupMode ? t('modalSetupTitle') : t('modalConnectedTitle')),
-          h('p', { className: 'notion-modal-text' },
-            setupMode ? t('modalSetupText', { name }) : t('modalConnectedText', { name })),
+          h('img', { className: 'notion-modal-icon', src: setupMode ? INFO_SVG : CHECK_SVG, alt: '' }),
+          h('h3', null, t('modalConnectedTitle')),
+          setupMode
+            ? h('p', { className: 'notion-modal-text' }, t('modalSetupLead', { name }))
+            : h('p', { className: 'notion-modal-text' }, t('modalConnectedText', { name })),
+          setupMode ? h('p', { className: 'notion-modal-hint' }, t('modalSetupBody')) : null,
           h('p', { className: 'notion-modal-hint' }, t('modalHint')),
           fallback
             ? h('textarea', {
