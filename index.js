@@ -613,6 +613,15 @@ export async function apply(ctx, config = {}) {
       req.on('end', () => { try { resolve(buf ? JSON.parse(buf) : {}); } catch { resolve({}); } });
     });
   }
+  // Read the raw request body bytes as a Buffer (for faithful proxy forwarding).
+  function readRaw(req) {
+    return new Promise((resolve) => {
+      const chunks = [];
+      req.on('data', (c) => { chunks.push(c); if (chunks.reduce((n, b) => n + b.length, 0) > 8e6) req.destroy(); });
+      req.on('end', () => resolve(Buffer.concat(chunks)));
+      req.on('error', () => resolve(Buffer.alloc(0)));
+    });
+  }
   // Proxy a Notion app page for embedding. The Notion app loads its JS/CSS from
   // root-relative paths (/_assets/...), so a single-HTML proxy 404s everything.
   // We expose a path-prefixed proxy: /embed/<encodedOrigin>/<rest>. HTML bodies
@@ -813,11 +822,14 @@ export async function apply(ctx, config = {}) {
       fwdHeaders.authorization = `Bearer ${grant.access_token}`;
 
       const isBody = !['GET', 'HEAD'].includes(req.method || 'GET');
+      // Buffer the request body instead of streaming the IncomingMessage into
+      // fetch: MCP JSON-RPC bodies are small, and streaming `req` with
+      // duplex:'half' intermittently fails ("fetch failed") on Node 24/undici.
+      const reqBody = isBody ? await readRaw(req) : undefined;
       const upstreamRes = await fetch(target.toString(), {
         method: req.method,
         headers: fwdHeaders,
-        body: isBody ? req : undefined,
-        duplex: 'half',
+        body: reqBody,
         redirect: 'manual',
       });
 
