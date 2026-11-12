@@ -901,7 +901,7 @@ export async function apply(ctx, config = {}) {
       }
     });
   } else {
-    ctx.logger?.info?.('[dsh-notion-plugin] mcpManager unavailable; expecting a static dsh-mcp-client row for the Notion MCP server');
+    ctx.logger?.error?.('[dsh-notion-plugin] ctx.mcpManager is unavailable. This plugin requires DeepSeek Harness >= 0.2.2 (engines.dsh >=0.2.2) for dynamic MCP registration; the Notion MCP tools will be missing on older versions. Upgrade DSH, or add a static @deepseek-ai/dsh-mcp-client row pointing at http://localhost:53683/mcp.');
   }
 
   // ---- 6. Commands --------------------------------------------------------
