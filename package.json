@@ -1,6 +1,6 @@
 {
   "name": "dsh-notion-plugin",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Notion workspace plugin for DeepSeek Harness: MCP OAuth (DCR) connection, multi-account settings UI, and 12 Notion skills with per-skill toggles",
   "private": true,
   "type": "module",
