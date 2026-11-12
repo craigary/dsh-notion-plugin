@@ -26,6 +26,11 @@ the model, so the skills plus natural language replace them.
 
 ## Install
 
+> **Requires DeepSeek Harness 0.2.2 or newer** (declared as `engines.dsh: ">=0.2.2-0"`).
+> This plugin registers its MCP server dynamically through `ctx.mcpManager`, which
+> exists from DSH 0.2.2; older runtimes are rejected at install time. Upgrade DSH
+> before installing.
+
 Install this directory as a DSH bundle (`plugin_manager` → `install_bundle`,
 target = this folder). It is not published to a registry.
 
