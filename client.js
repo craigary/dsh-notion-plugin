@@ -44,7 +44,7 @@ window.__ModuleLoader__.load({
         modalSetupTitle: 'Set up this workspace',
         modalConnectedText: '“{name}” is connected.',
         modalSetupLead: '“{name}” is connected successfully.',
-        modalSetupBody: 'This workspace is not set up yet. If you already set it up before, you can skip this.',
+        modalSetupBody: '“{name}” is connected but not set up yet. Copy the command below to finish setup; if you already set it up before, you can skip this.',
         modalSetupText: '“{name}” is not set up yet.',
         modalHint: 'If you already set Notion up before, you don’t need to do it again. Otherwise, copy the command, paste it into the message box, and press Enter.',
         copyCommand: 'Copy command',
@@ -80,7 +80,7 @@ window.__ModuleLoader__.load({
         modalSetupTitle: '初始化此工作区',
         modalConnectedText: '“{name}” 已连接。',
         modalSetupLead: '“{name}” 已成功连接。',
-        modalSetupBody: '这个工作区还没有完成初始化。如果你之前已经完成过，可以跳过。',
+        modalSetupBody: '“{name}” 已连接，但还没有完成初始化。复制下面的命令即可完成配置；如果你之前已经完成过，可以跳过。',
         modalSetupText: '“{name}” 尚未初始化。',
         modalHint: '如果你之前已经完成过配置，则无需再次配置。否则，请复制下面的命令，粘贴到输入框并回车。',
         copyCommand: '拷贝命令',
@@ -138,8 +138,8 @@ window.__ModuleLoader__.load({
 .notion-empty{color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6));padding:8px 0}
 .notion-err{color:#d4384a;font-size:12px}
 .notion-modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.38);display:flex;align-items:center;justify-content:center;z-index:9999}
-.notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:18px;padding:26px 20px 20px;width:min(88vw,300px);box-shadow:0 16px 48px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px}
-.notion-modal-icon{width:52px;height:52px;display:block;margin-bottom:2px}
+.notion-modal{background:var(--dsw-alias-bg-base,light-dark(#fff,#1c1d20));color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb));border-radius:18px;padding:26px 20px 20px;width:min(88vw,300px);box-shadow:0 16px 48px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:stretch;text-align:left;gap:10px}
+.notion-modal-icon{width:52px;height:52px;display:block;margin:0 auto 2px}
 .notion-modal h3{margin:0;font-size:18px;font-weight:600}
 .notion-modal-text{margin:0;font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary,light-dark(#0f1115,#f9fafb))}
 .notion-modal-hint{margin:0;font-size:12.5px;line-height:19px;color:var(--dsw-alias-label-secondary,light-dark(#61666b,#cfd3d6))}
@@ -191,13 +191,12 @@ window.__ModuleLoader__.load({
       };
       return h('div', { className: 'notion-modal-backdrop', onClick: onClose },
         h('div', { className: 'notion-modal', onClick: (e) => e.stopPropagation() },
-          h('img', { className: 'notion-modal-icon', src: setupMode ? INFO_SVG : CHECK_SVG, alt: '' }),
+          h('img', { className: 'notion-modal-icon', src: CHECK_SVG, alt: '' }),
           h('h3', null, t('modalConnectedTitle')),
           setupMode
-            ? h('p', { className: 'notion-modal-text' }, t('modalSetupLead', { name }))
+            ? h('p', { className: 'notion-modal-text' }, t('modalSetupBody'))
             : h('p', { className: 'notion-modal-text' }, t('modalConnectedText', { name })),
-          setupMode ? h('p', { className: 'notion-modal-hint' }, t('modalSetupBody')) : null,
-          h('p', { className: 'notion-modal-hint' }, t('modalHint')),
+          setupMode ? null : h('p', { className: 'notion-modal-hint' }, t('modalHint')),
           fallback
             ? h('textarea', {
                 ref: taRef, className: 'notion-modal-ta', readOnly: true, value: command,
