@@ -1,20 +1,9 @@
 - insert:
-    # The Notion MCP client talks only to this plugin's local authenticated
-    # proxy. The proxy injects a fresh `Authorization: Bearer` from the OAuth
-    # token store on every forwarded request, so the MCP client never holds a
-    # token and never needs to know about OAuth.
-    - id: notion-mcp
-      name: '@deepseek-ai/dsh-mcp-client'
-      config:
-        serverName: notion
-        transport: streamable-http
-        url: http://localhost:53683/mcp
-        # No real credential here: the loopback proxy is the credential holder.
-        headers:
-          x-dsh-notion-proxy: '1'
-        failOnStartupError: false
-        reconnect:
-          enabled: true
+    # The Notion MCP server is registered dynamically by the plugin at runtime
+    # through ctx.mcpManager (DSH >= 0.2.2), so it mounts/unmounts with the
+    # plugin and needs no static dsh-mcp-client row here. The server points at
+    # this plugin's local authenticated proxy, which injects a fresh
+    # Authorization: Bearer from the OAuth token store on every request.
     - id: notion-workspace-features
       name: 'dsh-notion-plugin'
       config:

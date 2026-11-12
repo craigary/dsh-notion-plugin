@@ -877,6 +877,33 @@ export async function apply(ctx, config = {}) {
     });
   }
 
+  // ---- 5b. Register the Notion MCP server dynamically ---------------------
+  // Prefer the runtime MCP manager (v0.2.2+): register the loopback proxy as an
+  // MCP server owned by this plugin's lifetime. It mounts/unmounts with the
+  // plugin, so no static `dsh-mcp-client` row in cordis.patch.yml is needed and
+  // no Host restart is required. Fall back gracefully when mcpManager is absent.
+  const mcpManager = ctx.get && ctx.get('mcpManager');
+  if (mcpManager && typeof mcpManager.register === 'function' && ctx.effect) {
+    ctx.effect(() => {
+      try {
+        const dispose = mcpManager.register('notion', {
+          transport: 'streamable-http',
+          url: `http://localhost:${proxyPort}/mcp`,
+          headers: { 'x-dsh-notion-proxy': '1' },
+          failOnStartupError: false,
+          reconnect: { enabled: true },
+        });
+        ctx.logger?.info?.('[dsh-notion-plugin] registered Notion MCP server via mcpManager');
+        return () => { try { dispose(); } catch { /* ignore */ } };
+      } catch (e) {
+        ctx.logger?.warn?.(`[dsh-notion-plugin] mcpManager.register failed: ${e.message}`);
+        return () => {};
+      }
+    });
+  } else {
+    ctx.logger?.info?.('[dsh-notion-plugin] mcpManager unavailable; expecting a static dsh-mcp-client row for the Notion MCP server');
+  }
+
   // ---- 6. Commands --------------------------------------------------------
   // No Notion slash commands: a command cannot hand control to the agent (DSH
   // executes commands log-only, without sending them to the model). The agent
